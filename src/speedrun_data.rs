@@ -153,6 +153,7 @@ impl SpeedRunComData {
 
             let runs = &mut self.data.get_mut().runs;
             for run in runs_data.data {
+                let video_url = run.video_url();
                 runs.insert(
                     run.id.clone(),
                     Run {
@@ -169,6 +170,7 @@ impl SpeedRunComData {
                             &run.submitted.unwrap_or("1970-01-01T00:00:00Z".to_string()),
                         )?,
                         duration: Duration::milliseconds((run.times.primary_t * 1000.0) as i64),
+                        video_url,
                     },
                 );
             }
@@ -240,6 +242,7 @@ pub struct Run {
     pub player: Player,
     pub performed: NaiveDate,
     pub submitted: DateTime<Utc>,
+    pub video_url: Option<String>,
     #[serde(serialize_with = "serialize_duration")]
     #[serde(deserialize_with = "deserialize_duration")]
     pub duration: Duration,
@@ -415,6 +418,26 @@ mod speedruncom_api {
             pub date: Option<String>,
             pub submitted: Option<String>,
             pub times: Times,
+            pub videos: Videos,
+        }
+
+        impl Run {
+            pub fn video_url(&self) -> Option<String> {
+                for link in self.videos.links.iter() {
+                    return Some(link.uri.clone());
+                }
+                return None;
+            }
+        }
+
+        #[derive(Deserialize, Debug)]
+        pub struct Videos {
+            links: Vec<VideoLink>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        pub struct VideoLink {
+            uri: String,
         }
 
         #[derive(Deserialize, Debug)]

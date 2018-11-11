@@ -112,7 +112,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                         if improvement > Duration::zero() {
                             Some(Record { run, improvement })
                         } else {
-                            None
+                            // XXX: this breaks evertything so remove it
+                            Some(Record { run, improvement })
+                            // None
                         }
                     }
                 };
@@ -148,7 +150,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .then(a.run.submitted.cmp(&b.run.submitted))
         });
 
-        println!("  date         runner        level               time  sum      delta");
+        println!("  date         runner        level               time  sum      delta  video");
 
         let mut sum = worst_sum;
         for record in all_level_records {
@@ -159,7 +161,9 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 .next()
                 .unwrap();
 
-            sum = sum - record.improvement;
+            if record.improvement > Duration::zero() {
+                sum = sum - record.improvement;
+            }
 
             if Utc::today().naive_utc() - record.run.performed > Duration::days(max_age_days) {
                 continue;
@@ -168,15 +172,17 @@ pub fn main() -> Result<(), Box<dyn Error>> {
             let term_bg_black = "\x1b[40m";
             let fg_yellow = "\x1b[93m";
             let fg_grey = "\x1b[37m";
+            let fg_dark_grey = "\x1b[90m";
             let fg_white = "\x1b[97m";
             let term_style_reset = "\x1b[0m";
             let improvement_text;
             let record_style;
-            if record.improvement == Duration::zero() {
-                improvement_text = "".to_string();
-            } else {
-                improvement_text = fmt_duration(record.improvement);
-            };
+            // if record.improvement == Duration::zero() {
+            //     improvement_text = "".to_string();
+            // } else {
+            //     improvement_text = fmt_duration(record.improvement);
+            // };
+            improvement_text = "".to_string(); // XXX broken for now
             let improvement = &format!("{:>5}", improvement_text);
 
             if records_by_level_id[&level.level_id]
@@ -187,7 +193,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                 == record.run.run_id
             {
                 // This is the current record.
-                record_style = fg_yellow;
+                // record_style = fg_yellow;
+                record_style = fg_white; // XXX REVERT ME
             } else {
                 record_style = fg_white;
             };
@@ -210,23 +217,42 @@ pub fn main() -> Result<(), Box<dyn Error>> {
                     "  ",
                     // level
                     &color_with_hash(&format!("{:<16}", level.name.to_string())[..16]),
-                    fg_grey,
+                    fg_dark_grey,
                     " in ",
                     // record/sum
                     &record_style,
                     &format!("{:>5}", fmt_duration(record.run.duration)),
-                    fg_grey,
+                    fg_dark_grey,
                     "/",
-                    &fmt_duration(sum),
+                    fg_grey,
+                    &format!("{:<7}", fmt_duration(sum)),
                     "  ",
                     // delta
                     fg_white,
                     improvement,
+                    // video URL!
+                    "  ",
+                    &record
+                        .run
+                        .video_url
+                        .clone()
+                        .unwrap_or("".to_string())
+                        .replace("https://www.youtube.com/watch?v=", "https://youtu.be/")
+                        .replace(
+                            "https://youtu.be/",
+                            &format!(
+                                "YouTu{}.{}be{}/{}",
+                                fg_dark_grey, term_style_reset, fg_dark_grey, term_style_reset
+                            )
+                        )
+                        .replace("?", &format!("{}?{}", fg_dark_grey, term_style_reset))
+                        .replace("&", &format!("{}&{}", fg_dark_grey, term_style_reset))
+                        .replace("=", &format!("{}={}", fg_grey, term_style_reset)),
                     // reset before EOL
                     " ",
                     term_style_reset,
                 ]
-                    .join("")
+                .join("")
             );
         }
     }
